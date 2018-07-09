@@ -1,48 +1,61 @@
+#include <string.h>
+#define MAX_BUF_SIZE 1024
 
+
+char delimeter[10] = "\n ";
+char* resetLog = "DevReset";
+
+void checkResetLog();
+int readLog(char* myLog);
 
 void setup() {
   //Initialize
   Serial.begin(115200);
 
-  //SetClass
+  //SetClass C
   Serial.println("LRW 4B 2");
   //ack 확인(??)
-  
+  delay(10000);
 }
 
 void loop() {
-  //device control check
-  //??
 
-
-
+  checkResetLog();
   
-  //uplink packet
-  byte buf[18];
+  Serial.println("LRW 31 1234567890 cnf 1");
 
- 
-
-  buf[0] = 0x4C; buf[1] = 0x52; buf[2] = 0x57; buf[3] = 0x20; buf[4] = 0x34;
-
-  buf[5] = 0x44; buf[6] = 0x20; buf[7] = 0x01; buf[8] = 0x01; buf[9] = 0x06;
-
-      buf[10] = 0x4D;
-
-      buf[11] = 0x4A;
-
-      buf[12] = 0x53;
-
-      buf[13] = 0x4C;
-
-      buf[14] = 0x44;
-
-      buf[15] = 0x57;
-
-  buf[16] = 0x0D; buf[17] = 0x0A;
-
-
- 
-  Serial.write(buf,18);
-
-  delay(5000);
+  delay(11000);  //권장 주기 : 1분  //최소 주기 : 10초
 }
+
+
+int readLog(char* myLog){
+  int i = 0;
+  while(Serial.available() != 0){
+    myLog[i] = Serial.read();
+    i++;  
+  }
+  return i;
+}
+
+
+void checkResetLog(){
+  char downLinkLog[MAX_BUF_SIZE] = {0,};
+
+  if(readLog(downLinkLog) != 0){
+      char *myToken;
+      char *pch = strtok(downLinkLog,delimeter);
+      while(pch)
+      {
+          if(strcmp(pch, resetLog)  ==  0){
+                Serial.println("LRW 31 PEM Device Reset! cnf 1");
+                delay(5000); //device reset command에 대한 ack를 보내는 시간
+                Serial.println("LRW 70");
+                break;
+           }
+           else{
+                pch = strtok(NULL,delimeter);
+           }
+      }
+   }
+}
+
