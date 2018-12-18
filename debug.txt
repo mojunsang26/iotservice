@@ -1,0 +1,147 @@
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+PrepareFrame: MType: FRAME_TYPE_JOIN_REQ / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 2 P 0
+TotalTxTime : 2637 ms
+	 SEND : Freq: 922100000 DR: 0 PWR: 0
+*1st Join*
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922100000, SF 12, BW 0, TO 25, RXC 0 
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+PrepareFrame: MType: FRAME_TYPE_JOIN_REQ / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 3 P 0
+TotalTxTime : 3956 ms
+	 SEND : Freq: 922500000 DR: 0 PWR: 0
+*1st Join*
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+
+BUSY
+
+RX1CH Open: freq 922500000, SF 12, BW 0, TO 25, RXC 0 
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+PrepareFrame: MType: FRAME_TYPE_JOIN_REQ / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 4 P 0
+TotalTxTime : 5275 ms
+	 SEND : Freq: 922500000 DR: 0 PWR: 0
+*1st Join*
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922500000, SF 12, BW 0, TO 25, RXC 0 
+
+OnRadioRxDone: MType: FRAME_TYPE_JOIN_ACCEPT / Ver: 0 
+OnRadioRxDone: ADR OFF, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 0 P 32
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+PrepareFrame: MType: FRAME_TYPE_DATA_CONFIRMED_UP / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 1 P 223
+TotalTxTime : 6430 ms
+	 SEND : Freq: 922900000 DR: 0 PWR: 0
+
+TotalTxTime : 7585 ms
+	 SEND : Freq: 921900000 DR: 0 PWR: 4
+tx time out
+TotalTxTime : 8740 ms
+	 SEND : Freq: 921900000 DR: 0 PWR: 4
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+RxDoneAbort
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+TotalTxTime : 9896 ms
+	 SEND : Freq: 923300000 DR: 0 PWR: 0
+
+RX1CH Open: freq 923300000, SF 12, BW 0, TO 25, RXC 0 
+RxDoneAbort
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+TotalTxTime : 11051 ms
+	 SEND : Freq: 922900000 DR: 0 PWR: 0
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922900000, SF 12, BW 0, TO 25, RXC 0 
+
+OnRadioRxDone: MType: FRAME_TYPE_DATA_UNCONFIRMED_DOWN / Ver: 0 
+OnRadioRxDone: ADR OFF, ADRACKReq 0, ACK 1 Fpending 0 FOptsLen 0 FCnt 1 P 223
+Rx_MSG 223 : 000103908434
+
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+AppDataProcessWithNS: RCV 1 
++save_nv_lorakey: !!!  offset 24 start 8080218  
+
+PrepareFrame: MType: FRAME_TYPE_DATA_CONFIRMED_UP / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 2 P 223
+TotalTxTime : 12206 ms
+	 SEND : Freq: 922700000 DR: 0 PWR: 0
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922700000, SF 12, BW 0, TO 25, RXC 0 
+
+OnRadioRxDone: MType: FRAME_TYPE_DATA_UNCONFIRMED_DOWN / Ver: 0 
+OnRadioRxDone: ADR OFF, ADRACKReq 0, ACK 1 Fpending 0 FOptsLen 0 FCnt 2 P 223
+Rx_MSG 223 : 000300
+
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+AppDataProcessWithNS: RCV 3 
+
+PrepareFrame: MType: FRAME_TYPE_JOIN_REQ / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 3 P 0
+TotalTxTime : 13525 ms
+	 SEND : Freq: 923300000 DR: 0 PWR: 0
+*2nd Join*
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 923300000, SF 12, BW 0, TO 25, RXC 0 
+
+OnRadioRxDone: MType: FRAME_TYPE_JOIN_ACCEPT / Ver: 0 
+OnRadioRxDone: ADR OFF, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 0 P 32
+Join is completed
+
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RxDoneAbort
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RxDoneAbort
+
+PrepareFrame: MType: FRAME_TYPE_DATA_CONFIRMED_UP / Ver: 0 
+PrepareFrame: ADR ON, ADRACKReq 0, ACK 0 Fpending 0 FOptsLen 0 FCnt 1 P 1
+	 SEND : Freq: 922700000 DR: 0 PWR: 0
+DataReport : 2000/00/00#198:96:72#1000.000000#1000.000000#-1.000000
+Payload size : 54
+
+OK
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922700000, SF 12, BW 0, TO 25, RXC 0 
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+	 SEND : Freq: 922500000 DR: 0 PWR: 0
+DataReport : 2000/00/00#198:96:72#1000.000000#1000.000000#-1.000000
+Payload size : 54
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RX1CH Open: freq 922500000, SF 12, BW 0, TO 25, RXC 0 
+
+OnRadioRxDone: MType: FRAME_TYPE_DATA_UNCONFIRMED_DOWN / Ver: 0 
+OnRadioRxDone: ADR OFF, ADRACKReq 0, ACK 1 Fpending 0 FOptsLen 0 FCnt 1 P 242
+
+
+RX2CH Open: freq 921900000, SF 12, BW 0, TO 25, RXC 1 
+
+RxDoneAbort
+

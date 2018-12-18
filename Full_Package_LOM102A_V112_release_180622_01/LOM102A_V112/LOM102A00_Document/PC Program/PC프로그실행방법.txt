@@ -1,0 +1,5 @@
+압축파일 해제 및 실행방법
+1. 압축파일(확장자 Zip)을 압축해제 프로그램으로 압축을 푼다
+2. 압축이 풀린 파일 LoRAWAN_GUI_CUSTOMER_v24.exa의 이름을 변경 한다.
+   LoRAWAN_GUI_CUSTOMER_v24.exa -> LoRAWAN_GUI_CUSTOMER_v24.exe
+3. LoRAWAN_GUI_CUSTOMER_v24.exe를 실행한다.
