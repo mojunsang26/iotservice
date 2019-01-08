@@ -6,19 +6,32 @@
 #define SERIAL1_RXPIN 23
 #define SERIAL1_TXPIN 22
 #define PINNUM_LORARST 2
-#define PINNUM_WKUP1 3    /////////////////////////////////////////////
+#define PINNUM_WKUP1 4
 #define MAINLOOP_TIME 3000
 #define UPLINK_TIME 60000
-#define TRIGGER_DELAY 10
+#define TRIGGER_DELAY 1
 #define TX_TO_RX_DELAY 3000
 #define RX_BUF_SIZE 6000
 #define MSG_65_BYTES "12345678901234567890123456789012345678901234567890123456789012345"
 #define MSG_66_BYTES "123456789012345678901234567890123456789012345678901234567890123456"
+
+#define SET_ACTIVATION_MODE "LRW 30"
 #define LORA_CON_SEND "LRW 31 %s cnf 1"
 #define LINK_CHECK_REQ "LRW 38"
 #define TIME_SYNC_REQ "LRW 39"
+#define ENHANCED_PROVISIONING_1 "LRW 3C"
+#define ENHANCED_PROVISIONING_2 "LRW 3B"
+#define SET_CLASS_TYPE "LRW 4B"
+#define SET_UPLINK_CYCLE "LRW 58"
+#define SYSTEM_SOFTWARE_RESET "LRW 70"
+#define SET_UART_BAUDRATE "LRW 61"
+#define SET_ONESECONDDELAY "LRW 2E"
 
-#define LORA_JOINED "join is completed"
+
+#define LORA_ACK "FRAME_TYPE_DATA_UNCONFIRMED_DOWN"
+#define LORA_CLI_OK "OK"
+#define LORA_CLI_ERROR "ERROR"
+#define LORA_JOINED "Join is completed"
 clock_t CLK;
 
 void check_pc_command(void);
@@ -41,14 +54,15 @@ void loop() {
   if(Serial.available()){
     check_pc_command();
   }
-  if(clock()-CLK > UPLINK_TIME){
-    char packet_buf[128], gps_buf[128];
-    if(payload_GPS_Module(gps_buf) == false){
-      //NYI
-    }
-    sprintf(packet_buf, LORA_CON_SEND, gps_buf);
-    if(send_packet_and_check_rsp(packet_buf, NULL) == true) CLK = clock();
-  }
+
+//  if(clock()-CLK > UPLINK_TIME){
+//    char packet_buf[128], gps_buf[128];
+//    if(payload_GPS_Module(gps_buf) == false){
+//      //NYI
+//    }
+//    sprintf(packet_buf, LORA_CON_SEND, gps_buf);
+//    if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true) CLK = clock();
+//  }
   delay(MAINLOOP_TIME);
 }
 
@@ -59,25 +73,33 @@ void check_pc_command(void){
   switch(temp)
   {
     case 0://CLI Command from Serial Monitor
-        send_packet_and_check_rsp(fromPC, NULL);
+        if(invoke_reset(fromPC))
+          send_packet_and_check_rsp(fromPC, LORA_JOINED);
+        else if(strstr(fromPC, "LRW 31") != 0)
+          send_packet_and_check_rsp(fromPC, LORA_ACK);
+        else
+          send_packet_and_check_rsp(fromPC, LORA_CLI_OK);
         delay(5000);
         break;
     case 1://Data Send 65 Bytes
         if(clock() - CLK > UPLINK_TIME) { 
-          if(send_packet_and_check_rsp(MSG_65_BYTES, NULL) == true) CLK = clock();
+          if(send_packet_and_check_rsp(MSG_65_BYTES, LORA_ACK) == true)
+            CLK = clock();
         }
-        else Serial.println("[ERROR] uplink time error");
+        else 
+          Serial.println("[ERROR] uplink time error");
         break;
     case 2://Data Send 66 Bytes
-        if(clock() - CLK > UPLINK_TIME) { send_packet_and_check_rsp(MSG_66_BYTES, NULL); }
+        if(clock() - CLK > UPLINK_TIME)
+          send_packet_and_check_rsp(MSG_66_BYTES, LORA_CLI_ERROR); 
         else Serial.println("[ERROR] uplink time error");
         break;
     case 3://Link Check Request
-        send_packet_and_check_rsp(LINK_CHECK_REQ, NULL);
+        send_packet_and_check_rsp(LINK_CHECK_REQ, LORA_CLI_OK);
         delay(3000);
         break;
     case 4://Device Time Request
-        send_packet_and_check_rsp(TIME_SYNC_REQ, NULL);
+        send_packet_and_check_rsp(TIME_SYNC_REQ, LORA_CLI_OK);
         delay(3000);
         break;
     default:
@@ -87,16 +109,30 @@ void check_pc_command(void){
   }
 }
 
+bool invoke_reset(char * str){
+  bool ret = false;
+  if(strstr(str, SET_ACTIVATION_MODE)) ret = true;
+  else if(strstr(str, ENHANCED_PROVISIONING_1)) ret = true;
+  else if(strstr(str, ENHANCED_PROVISIONING_2)) ret = true;
+  else if(strstr(str, SET_CLASS_TYPE)) ret = true;
+  else if(strstr(str, SET_UPLINK_CYCLE)) ret = true;
+  else if(strstr(str, SYSTEM_SOFTWARE_RESET)) ret = true;
+  else if(strstr(str, SET_UART_BAUDRATE)) ret = true;
+  else if(strstr(str, SET_ONESECONDDELAY)) ret = true;
+  return ret;
+}
+
 void lora_reset(){
   pinMode(PINNUM_LORARST,OUTPUT);
   delay(TRIGGER_DELAY);
   pinMode(PINNUM_LORARST,INPUT);
-
+  delay(1000);
   bool ret = false;
   while(ret == false){
     char downlink_msg[RX_BUF_SIZE];
     read_and_print_downlink_msg(downlink_msg, Serial2);
     ret = parsing_downlink_msg(downlink_msg, LORA_JOINED);
+    delay(1000);
   }
   //set_class(0);
   //set_adr(0);
@@ -105,6 +141,9 @@ void lora_reset(){
 }
 
 void read_and_print_downlink_msg(char* downlink_msg, HardwareSerial module){
+  if(!module.available())
+    return;
+    
   int i=0;
   while(module.available()){
     downlink_msg[i] = module.read();
@@ -112,6 +151,7 @@ void read_and_print_downlink_msg(char* downlink_msg, HardwareSerial module){
   }
   downlink_msg[i] = 0;
   Serial.println(downlink_msg);
+  Serial.flush();
 }
 
 void set_class(int cls){
@@ -144,13 +184,14 @@ void set_class(int cls){
 bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp){
   //WKUP1(Pin 39)은 rising edge에 의해 트리거 되며, rising 이후 최소 3.5usec 이상 high 상태를 유지하도록 한다.
   //UART 입력은 rising edge 시작 기준 최소 1msec이상의 시간 이후에 진행 한다. 
-  int ret = false;
+  bool ret = false;
   
   pinMode(PINNUM_WKUP1,OUTPUT);
   delay(TRIGGER_DELAY);
   pinMode(PINNUM_WKUP1,INPUT);
-  
-  Serial2.print(packet_buf);
+
+  delay(1000);
+  Serial2.println(packet_buf);
   delay(TX_TO_RX_DELAY);
 
   char downlink_msg[RX_BUF_SIZE];
@@ -176,7 +217,7 @@ bool parsing_downlink_msg(char* str, char* check_rsp){
     }
   }
   else{
-    if(strstr(str, "FRAME_TYPE_DATA_UNCONFIRMED_DOWN") != 0){
+    if(strstr(str, LORA_CLI_OK) != 0){
       ret = true;
     }
   }
