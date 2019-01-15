@@ -51,18 +51,18 @@ void setup() {
 }
 
 void loop() {
-  if(Serial.available()){
+  if(Serial.available())
     check_pc_command();
-  }
 
-//  if(clock()-CLK > UPLINK_TIME){
-//    char packet_buf[128], gps_buf[128];
-//    if(payload_GPS_Module(gps_buf) == false){
-//      //NYI
-//    }
-//    sprintf(packet_buf, LORA_CON_SEND, gps_buf);
-//    if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true) CLK = clock();
-//  }
+  if(clock()-CLK > UPLINK_TIME){
+    char packet_buf[128], gps_buf[128];
+    if(payload_GPS_Module(gps_buf) == false){
+      //NYI
+    }
+    sprintf(packet_buf, LORA_CON_SEND, gps_buf);
+    if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true)
+      CLK = clock();
+  }
   delay(MAINLOOP_TIME);
 }
 
@@ -75,38 +75,55 @@ void check_pc_command(void){
     case 0://CLI Command from Serial Monitor
         if(invoke_reset(fromPC))
           send_packet_and_check_rsp(fromPC, LORA_JOINED);
-        else if(strstr(fromPC, "LRW 31") != 0)
-          send_packet_and_check_rsp(fromPC, LORA_ACK);
+          
+        else if(strstr(fromPC, "LRW 31") != 0){
+          if(clock() - CLK> UPLINK_TIME)
+            Serial.println("[ERROR] uplink time error");
+          else
+            send_packet_and_check_rsp(fromPC, LORA_ACK);
+        }
+        
         else
           send_packet_and_check_rsp(fromPC, LORA_CLI_OK);
         delay(5000);
         break;
+        
     case 1://Data Send 65 Bytes
         if(clock() - CLK > UPLINK_TIME) { 
           if(send_packet_and_check_rsp(MSG_65_BYTES, LORA_ACK) == true)
             CLK = clock();
         }
+        
         else 
           Serial.println("[ERROR] uplink time error");
+          
         break;
+        
     case 2://Data Send 66 Bytes
         if(clock() - CLK > UPLINK_TIME)
           send_packet_and_check_rsp(MSG_66_BYTES, LORA_CLI_ERROR); 
-        else Serial.println("[ERROR] uplink time error");
+          
+        else 
+          Serial.println("[ERROR] uplink time error");
+          
         break;
+        
     case 3://Link Check Request
         send_packet_and_check_rsp(LINK_CHECK_REQ, LORA_CLI_OK);
         delay(3000);
         break;
+        
     case 4://Device Time Request
         send_packet_and_check_rsp(TIME_SYNC_REQ, LORA_CLI_OK);
         delay(3000);
         break;
+        
     default:
         //NYI
         Serial.print("[MCU DEBUG] ERROR : ");
         Serial.write(fromPC);
   }
+  Serial.flush();
 }
 
 bool invoke_reset(char * str){
