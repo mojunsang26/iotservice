@@ -5,10 +5,12 @@
 
 #define SERIAL1_RXPIN 23
 #define SERIAL1_TXPIN 22
+#define PINNUM_MCURST 0
 #define PINNUM_LORARST 2
 #define PINNUM_WKUP1 4
 #define MAINLOOP_TIME 3000
-#define UPLINK_TIME 60000
+#define NUM_TRY_TX 8
+#define UPLINK_TIME 20000
 #define TRIGGER_DELAY 1
 #define TX_TO_RX_DELAY 3000
 #define RX_BUF_SIZE 6000
@@ -32,6 +34,7 @@
 #define LORA_CLI_OK "OK"
 #define LORA_CLI_ERROR "ERROR"
 #define LORA_JOINED "Join is completed"
+#define RX2CH_OPEN "RX2CH Open"
 clock_t CLK;
 
 void check_pc_command(void);
@@ -40,7 +43,7 @@ void read_and_print_downlink_msg(char* downlink_msg, HardwareSerial module);
 void set_class(int cls);
 void send_handler(char * buf);
 bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp);
-bool parsing_downlink_msg(char* str);
+bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt);
 
 void setup() {
   Serial.begin(115200); //Host PC
@@ -48,14 +51,15 @@ void setup() {
   Serial2.begin(115200); //LoRa Module
   Serial2.setRxBufferSize(RX_BUF_SIZE - 10);
   lora_reset();
+  CLK = clock();
 }
 
 void loop() {
   if(Serial.available())
     check_pc_command();
-
   if(clock()-CLK > UPLINK_TIME){
-    char packet_buf[128], gps_buf[128];
+    char packet_buf[128];
+    char gps_buf[128];
     if(payload_GPS_Module(gps_buf) == false){
       //NYI
     }
@@ -73,24 +77,30 @@ void check_pc_command(void){
   switch(temp)
   {
     case 0://CLI Command from Serial Monitor
-        if(invoke_reset(fromPC))
+        if(invoke_reset(fromPC)){
           send_packet_and_check_rsp(fromPC, LORA_JOINED);
-          
+          CLK = clock();
+        }
+        
         else if(strstr(fromPC, "LRW 31") != 0){
-          if(clock() - CLK> UPLINK_TIME)
+          if(clock() - CLK < UPLINK_TIME)
             Serial.println("[ERROR] uplink time error");
           else
             send_packet_and_check_rsp(fromPC, LORA_ACK);
+            CLK = clock();
         }
         
         else
           send_packet_and_check_rsp(fromPC, LORA_CLI_OK);
-        delay(5000);
+
         break;
         
     case 1://Data Send 65 Bytes
-        if(clock() - CLK > UPLINK_TIME) { 
-          if(send_packet_and_check_rsp(MSG_65_BYTES, LORA_ACK) == true)
+    {
+        char packet_buf[128];
+        if(clock() - CLK > UPLINK_TIME) {
+          sprintf(packet_buf, LORA_CON_SEND, MSG_65_BYTES);
+          if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true)
             CLK = clock();
         }
         
@@ -98,7 +108,7 @@ void check_pc_command(void){
           Serial.println("[ERROR] uplink time error");
           
         break;
-        
+    }
     case 2://Data Send 66 Bytes
         if(clock() - CLK > UPLINK_TIME)
           send_packet_and_check_rsp(MSG_66_BYTES, LORA_CLI_ERROR); 
@@ -145,12 +155,14 @@ void lora_reset(){
   pinMode(PINNUM_LORARST,INPUT);
   delay(1000);
   bool ret = false;
+  int rx2ch_open_cnt = 0;
   while(ret == false){
     char downlink_msg[RX_BUF_SIZE];
     read_and_print_downlink_msg(downlink_msg, Serial2);
-    ret = parsing_downlink_msg(downlink_msg, LORA_JOINED);
+    ret = parsing_downlink_msg(downlink_msg, LORA_JOINED, rx2ch_open_cnt);
     delay(1000);
   }
+  rx2ch_open_cnt = 0;
   //set_class(0);
   //set_adr(0);
   //set_dr(0);
@@ -202,7 +214,7 @@ bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp){
   //WKUP1(Pin 39)은 rising edge에 의해 트리거 되며, rising 이후 최소 3.5usec 이상 high 상태를 유지하도록 한다.
   //UART 입력은 rising edge 시작 기준 최소 1msec이상의 시간 이후에 진행 한다. 
   bool ret = false;
-  
+  int rx2ch_open_cnt = 0;
   pinMode(PINNUM_WKUP1,OUTPUT);
   delay(TRIGGER_DELAY);
   pinMode(PINNUM_WKUP1,INPUT);
@@ -212,22 +224,29 @@ bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp){
   delay(TX_TO_RX_DELAY);
 
   char downlink_msg[RX_BUF_SIZE];
-  while(ret == false){
+  while(ret == false && rx2ch_open_cnt != NUM_TRY_TX){
     read_and_print_downlink_msg(downlink_msg, Serial2);
-    ret = parsing_downlink_msg(downlink_msg, check_rsp);
+    ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
     delay(1000);
   }
+  rx2ch_open_cnt = 0;
   return ret;
 }
 
-bool parsing_downlink_msg(char* str, char* check_rsp){
+bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt){
   //TODO : busy
   bool ret = false;
   if(strstr(str, "DevReset") != 0){
     delay(10000);
-    pinMode(0,OUTPUT); // MCU RESET
+    pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
     delay(500);
   }
+  if(strstr(str, RX2CH_OPEN) != 0){
+    rx2ch_open_cnt++;
+    Serial.print("num tx try : ");
+    Serial.println(rx2ch_open_cnt);
+  }
+    
   if(check_rsp != NULL){
     if(strstr(str, check_rsp) != 0){
       ret = true;
@@ -237,12 +256,19 @@ bool parsing_downlink_msg(char* str, char* check_rsp){
     if(strstr(str, LORA_CLI_OK) != 0){
       ret = true;
     }
+    if(strstr(str, LORA_CLI_ERROR) != 0){
+      delay(10000);
+      pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
+      delay(500);
+    }
   }
+  str[0] = '\0';
   return ret;
 }
 
 bool payload_GPS_Module(char* buf)
 {
+  buf[0] = '\0';
   TinyGPS gps;
   while(Serial1.available())
     gps.encode(Serial1.read());
