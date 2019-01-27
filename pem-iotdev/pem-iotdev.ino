@@ -32,10 +32,12 @@
 
 
 #define LORA_ACK "FRAME_TYPE_DATA_UNCONFIRMED_DOWN"
+#define LORA_CONFIRMED_DOWN "FRAME_TYPE_DATA_CONFIRMED_DOWN"
 #define LORA_CLI_OK "OK"
 #define LORA_CLI_ERROR "ERROR"
 #define LORA_JOINED "Join is completed"
 #define RX2CH_OPEN "RX2CH Open"
+#define LORA_DEVRESET "DevReset"
 clock_t CLK;
 clock_t CLK_TX;
 
@@ -60,6 +62,7 @@ void setup() {
 void loop() {
   if(Serial.available())
     check_pc_command();
+    
   if(clock()-CLK > UPLINK_TIME && clock()-CLK_TX > TX_TIME){
     char packet_buf[128];
     char gps_buf[128];
@@ -126,13 +129,21 @@ void check_pc_command(void){
         break;
         
     case 3://Link Check Request
-        send_packet_and_check_rsp(LINK_CHECK_REQ, LORA_CLI_OK);
-        delay(3000);
+        if(clock() - CLK_TX > TX_TIME){
+          send_packet_and_check_rsp(LINK_CHECK_REQ, LORA_CLI_OK);
+          delay(3000);
+        }
+        else
+          Serial.println("[ERROR] uplink time error");
         break;
         
     case 4://Device Time Request
+        if(clock() - CLK_TX > TX_TIME){
         send_packet_and_check_rsp(TIME_SYNC_REQ, LORA_CLI_OK);
         delay(3000);
+        }
+        else
+          Serial.println("[ERROR] uplink time error");
         break;
         
     default:
@@ -187,7 +198,6 @@ void read_and_print_downlink_msg(char* downlink_msg, HardwareSerial module){
   }
   downlink_msg[i] = 0;
   Serial.println(downlink_msg);
-  Serial.flush();
 }
 
 void set_class(int cls){
@@ -243,13 +253,17 @@ bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp){
 bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt){
   //TODO : busy
   bool ret = false;
-  if(strstr(str, "DevReset") != 0){
-    delay(10000);
-    while(Serial2.available()){
-      Serial.write(Serial2.read());
+  if(strstr(str, LORA_CONFIRMED_DOWN) != 0){
+    delay(10000); //ACK 보내는 시간동안 기다리고 디버그 메세지 모으기
+    char additional[RX_BUF_SIZE];
+    read_and_print_downlink_msg(additional, Serial2);
+    strcat(str, additional);
+
+    if(strstr(str, LORA_DEVRESET)){
+      pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
+      delay(500);
     }
-    pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
-    delay(500);
+    ret = true;
   }
 
   if(strstr(str, RX2CH_OPEN) != 0){
