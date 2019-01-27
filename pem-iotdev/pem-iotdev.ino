@@ -10,7 +10,8 @@
 #define PINNUM_WKUP1 4
 #define MAINLOOP_TIME 3000
 #define NUM_TRY_TX 8
-#define UPLINK_TIME 20000
+#define UPLINK_TIME 60000
+#define TX_TIME 12000
 #define TRIGGER_DELAY 1
 #define TX_TO_RX_DELAY 3000
 #define RX_BUF_SIZE 6000
@@ -36,6 +37,7 @@
 #define LORA_JOINED "Join is completed"
 #define RX2CH_OPEN "RX2CH Open"
 clock_t CLK;
+clock_t CLK_TX;
 
 void check_pc_command(void);
 void lora_reset(void);
@@ -52,20 +54,23 @@ void setup() {
   Serial2.setRxBufferSize(RX_BUF_SIZE - 10);
   lora_reset();
   CLK = clock();
+  CLK_TX = clock();
 }
 
 void loop() {
   if(Serial.available())
     check_pc_command();
-  if(clock()-CLK > UPLINK_TIME){
+  if(clock()-CLK > UPLINK_TIME && clock()-CLK_TX > TX_TIME){
     char packet_buf[128];
     char gps_buf[128];
     if(payload_GPS_Module(gps_buf) == false){
       //NYI
     }
     sprintf(packet_buf, LORA_CON_SEND, gps_buf);
-    if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true)
+    if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true){
       CLK = clock();
+      CLK_TX = clock();
+    }
   }
   delay(MAINLOOP_TIME);
 }
@@ -79,15 +84,17 @@ void check_pc_command(void){
     case 0://CLI Command from Serial Monitor
         if(invoke_reset(fromPC)){
           send_packet_and_check_rsp(fromPC, LORA_JOINED);
+          CLK_TX = clock();
           CLK = clock();
         }
         
         else if(strstr(fromPC, "LRW 31") != 0){
-          if(clock() - CLK < UPLINK_TIME)
+          if(clock() - CLK_TX < TX_TIME)
             Serial.println("[ERROR] uplink time error");
-          else
+          else{
             send_packet_and_check_rsp(fromPC, LORA_ACK);
-            CLK = clock();
+            CLK_TX = clock();
+          }
         }
         
         else
@@ -98,10 +105,10 @@ void check_pc_command(void){
     case 1://Data Send 65 Bytes
     {
         char packet_buf[128];
-        if(clock() - CLK > UPLINK_TIME) {
+        if(clock() - CLK_TX > TX_TIME) {
           sprintf(packet_buf, LORA_CON_SEND, MSG_65_BYTES);
           if(send_packet_and_check_rsp(packet_buf, LORA_ACK) == true)
-            CLK = clock();
+            CLK_TX = clock();
         }
         
         else 
@@ -110,7 +117,7 @@ void check_pc_command(void){
         break;
     }
     case 2://Data Send 66 Bytes
-        if(clock() - CLK > UPLINK_TIME)
+        if(clock() - CLK_TX > TX_TIME)
           send_packet_and_check_rsp(MSG_66_BYTES, LORA_CLI_ERROR); 
           
         else 
@@ -238,13 +245,17 @@ bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt){
   bool ret = false;
   if(strstr(str, "DevReset") != 0){
     delay(10000);
+    while(Serial2.available()){
+      Serial.write(Serial2.read());
+    }
     pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
     delay(500);
   }
+
   if(strstr(str, RX2CH_OPEN) != 0){
     rx2ch_open_cnt++;
-    Serial.print("num tx try : ");
-    Serial.println(rx2ch_open_cnt);
+    //Serial.print("num tx try : ");
+    //Serial.println(rx2ch_open_cnt);
   }
     
   if(check_rsp != NULL){
