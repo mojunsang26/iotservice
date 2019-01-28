@@ -271,7 +271,7 @@ bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt){
       delay(TRIGGER_DELAY);
     }
 
-    
+    ret = true;
   }
 
   if(check_rsp != NULL)
