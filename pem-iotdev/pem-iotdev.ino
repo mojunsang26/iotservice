@@ -9,10 +9,10 @@
 #define PINNUM_LORARST 2
 #define PINNUM_WKUP1 4
 #define MAINLOOP_TIME 3000
-#define NUM_TRY_TX 8
+#define NUM_RETRANSMISSION 8
 #define UPLINK_TIME 60000
 #define TX_TIME 12000
-#define TRIGGER_DELAY 1
+#define TRIGGER_DELAY 10
 #define TX_TO_RX_DELAY 3000
 #define RX_BUF_SIZE 6000
 #define MSG_65_BYTES "12345678901234567890123456789012345678901234567890123456789012345"
@@ -178,7 +178,7 @@ void lora_reset(){
     char downlink_msg[RX_BUF_SIZE];
     read_and_print_downlink_msg(downlink_msg, Serial2);
     ret = parsing_downlink_msg(downlink_msg, LORA_JOINED, rx2ch_open_cnt);
-    delay(1000);
+    delay(100);
   }
   rx2ch_open_cnt = 0;
   //set_class(0);
@@ -241,50 +241,50 @@ bool send_packet_and_check_rsp(char* packet_buf, char* check_rsp){
   delay(TX_TO_RX_DELAY);
 
   char downlink_msg[RX_BUF_SIZE];
-  while(ret == false && rx2ch_open_cnt != NUM_TRY_TX){
+  while(ret == false && rx2ch_open_cnt != NUM_RETRANSMISSION){
     read_and_print_downlink_msg(downlink_msg, Serial2);
     ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
-    delay(1000);
+    delay(500);
   }
-  rx2ch_open_cnt = 0;
   return ret;
 }
 
 bool parsing_downlink_msg(char* str, char* check_rsp, int& rx2ch_open_cnt){
   //TODO : busy
   bool ret = false;
+
+  if(strstr(str, RX2CH_OPEN) != 0)
+    rx2ch_open_cnt++;
+  
   if(strstr(str, LORA_CONFIRMED_DOWN) != 0){
-    delay(10000); //ACK 보내는 시간동안 기다리고 디버그 메세지 모으기
+    delay(5000); //ACK 보내는 시간동안 기다리고 디버그 메세지 모으기
     char additional[RX_BUF_SIZE];
     read_and_print_downlink_msg(additional, Serial2);
+    
+    if(strstr(additional, RX2CH_OPEN) != 0)
+       rx2ch_open_cnt++;
+    
     strcat(str, additional);
 
     if(strstr(str, LORA_DEVRESET)){
       pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
-      delay(500);
+      delay(TRIGGER_DELAY);
     }
-    ret = true;
+
+    
   }
 
-  if(strstr(str, RX2CH_OPEN) != 0){
-    rx2ch_open_cnt++;
-    //Serial.print("num tx try : ");
-    //Serial.println(rx2ch_open_cnt);
-  }
-    
-  if(check_rsp != NULL){
-    if(strstr(str, check_rsp) != 0){
+  if(check_rsp != NULL)
+    if(strstr(str, check_rsp) != 0)
       ret = true;
-    }
-  }
+    
   else{
     if(strstr(str, LORA_CLI_OK) != 0){
       ret = true;
     }
     if(strstr(str, LORA_CLI_ERROR) != 0){
-      delay(10000);
-      pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
-      delay(500);
+      //NYI
+      ret = true;
     }
   }
   str[0] = '\0';
