@@ -9,7 +9,7 @@
 #define PINNUM_LORARST 2
 #define PINNUM_WKUP1 4
 #define MAINLOOP_TIME 3000
-#define NUM_RETRANSMISSION 8
+int NUM_RETRANSMISSION = 8;
 #define UPLINK_TIME 60000
 #define TX_TIME 12000
 #define TRIGGER_DELAY 10
@@ -32,6 +32,8 @@
 
 #define LORA_ACK "FRAME_TYPE_DATA_UNCONFIRMED_DOWN"
 #define LORA_CONFIRMED_DOWN "FRAME_TYPE_DATA_CONFIRMED_DOWN"
+#define LORA_UNCONFIRMED_UP "FRAME_TYPE_DATA_UNCONFIRMED_UP"
+#define LORA_CONFIRMED_UP "FRAME_TYPE_DATA_CONFIMRED_UP"
 #define LORA_CLI_OK "OK"
 #define LORA_CLI_ERROR "ERROR"
 #define LORA_JOINED "Join is completed"
@@ -47,6 +49,7 @@ void set_class(int cls);
 void send_handler(char *buf);
 bool send_packet_and_check_rsp(char *packet_buf, char *check_rsp);
 bool parsing_downlink_msg(char *str, char *check_rsp, int &rx2ch_open_cnt);
+bool payload_GPS_Module(char *buf);
 
 void setup()
 {
@@ -135,18 +138,18 @@ void check_pc_command(void)
             }
         }
 
-        else
+        else{
             Serial.println("[ERROR] uplink time error");
-
+        }
         break;
     }
     case 2: //Data Send 66 Bytes
-        if (clock() - CLK_TX > TX_TIME)
+        if (clock() - CLK_TX > TX_TIME){
             send_packet_and_check_rsp(MSG_66_BYTES, LORA_CLI_ERROR);
-
-        else
+        }
+        else{
             Serial.println("[ERROR] uplink time error");
-
+        }
         break;
 
     case 3: //Link Check Request
@@ -155,8 +158,9 @@ void check_pc_command(void)
             send_packet_and_check_rsp(LINK_CHECK_REQ, LORA_CLI_OK);
             delay(3000);
         }
-        else
+        else{
             Serial.println("[ERROR] uplink time error");
+        }  
         break;
 
     case 4: //Device Time Request
@@ -165,8 +169,9 @@ void check_pc_command(void)
             send_packet_and_check_rsp(TIME_SYNC_REQ, LORA_CLI_OK);
             delay(3000);
         }
-        else
+        else{
             Serial.println("[ERROR] uplink time error");
+        }
         break;
 
     default:
@@ -216,7 +221,6 @@ void lora_reset()
         ret = parsing_downlink_msg(downlink_msg, LORA_JOINED, rx2ch_open_cnt);
         delay(1000);
     }
-    rx2ch_open_cnt = 0;
     //set_class(0);
     //set_adr(0);
     //set_dr(0);
@@ -238,51 +242,30 @@ void read_and_print_downlink_msg(char *downlink_msg, HardwareSerial module)
     Serial.print(downlink_msg);
 }
 
-void set_class(int cls)
-{
-    //  int ret;
-    //  char get_cls, buf[30];
-    //
-    //  ret = send_and_check_command(LORA_GET_CLASS, LORA_GET_CLASS_RSP, LORA_CMD_BUSY_RSP, 0);
-    //  while(!(lora_cli_loop() == RET_OK));
-    //  get_cls = lora_cmd.lora_rsp_buffer[sizeof(LORA_GET_CLASS_RSP)-1];
-    //
-    //  if((cls == 0 && get_cls == 'A') || (cls == 2 && get_cls == 'C'))
-    //  {
-    //    PRINTF("[DEBUG]Same_class %c\r\n", get_cls);
-    //    ret = send_and_check_command(NULL, LORA_JOINED , NULL, 0);
-    //    while(!(lora_cli_loop() == RET_OK));
-    //  }
-    //  else
-    //  {
-    //    sprintf(buf, LORA_SET_CLASS, cls);
-    //    ret = send_and_check_command(buf, LORA_JOINED , NULL, 0);
-    //    while(!(lora_cli_loop() == RET_OK));
-    //  }
-    //
-    //  PRINTF("[DEBUG]JOIN Completed\r\n");
-    //  HAL_Delay(1000);
-    //  lora_cmd.proceeding_flag = 0;
-    //  return ret;
-}
 
 bool send_packet_and_check_rsp(char *packet_buf, char *check_rsp)
 {
     //WKUP1(Pin 39)은 rising edge에 의해 트리거 되며, rising 이후 최소 3.5usec 이상 high 상태를 유지하도록 한다.
     //UART 입력은 rising edge 시작 기준 최소 1msec이상의 시간 이후에 진행 한다.
     bool ret = false;
+    char downlink_msg[RX_BUF_SIZE];
     int rx2ch_open_cnt = 0;
+    
     pinMode(PINNUM_WKUP1, OUTPUT);
-    delay(TRIGGER_DELAY);
+    delay(10);
     pinMode(PINNUM_WKUP1, INPUT);
-
     delay(1000);
+
     Serial2.println(packet_buf);
     delay(TX_TO_RX_DELAY);
 
-    char downlink_msg[RX_BUF_SIZE];
     while (ret == false && rx2ch_open_cnt != NUM_RETRANSMISSION)
     {
+        read_and_print_downlink_msg(downlink_msg, Serial2);
+        ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
+        delay(1000);
+    }
+    for(int i=0;i<2;i++){
         read_and_print_downlink_msg(downlink_msg, Serial2);
         ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
         delay(1000);
@@ -295,24 +278,51 @@ bool parsing_downlink_msg(char *str, char *check_rsp, int &rx2ch_open_cnt)
     //TODO : busy
     bool ret = false;
 
+    if(str == NULL) return ret;
+    
+    char downlink_msg[RX_BUF_SIZE-10];
+ 
     if (strstr(str, RX2CH_OPEN) != 0)
     {
         rx2ch_open_cnt++;
     }
-    if (strstr(str, LORA_CONFIRMED_DOWN) != NULL)
+    
+    if (strstr(str, LORA_CONFIRMED_DOWN) != 0)
     {
-        char additional[3000];
-        delay(15000);//ACK 보내는 시간동안 기다리고 디버그 메세지 모으기
-        read_and_print_downlink_msg(additional, Serial2);
-        if (strstr(additional, RX2CH_OPEN) != NULL)
-        {
-            rx2ch_open_cnt++;
+        bool ret2 = false;
+        bool checkReset = false;
+        char* NbReTrans = strstr(str, "Nb ");
+        if(strstr(str, LORA_DEVRESET) != 0){
+          checkReset = true;
         }
-        strcat(str, additional);
+        
+        if(NbReTrans != 0){
+          if(*(NbReTrans+3)-'0' != 0){
+            NUM_RETRANSMISSION = *(NbReTrans+3)-'0';
+          }
+        }
 
-        if (strstr(str, LORA_DEVRESET))
+        //UNCONFIRMED UP 확인
+        ret2 = (strstr(str, LORA_UNCONFIRMED_UP) != 0);
+        while (ret2 == false)
+        {  
+            read_and_print_downlink_msg(downlink_msg, Serial2);
+            ret2 = parsing_downlink_msg(downlink_msg, LORA_UNCONFIRMED_UP, rx2ch_open_cnt);
+            delay(1000);
+        }
+        
+        if(ret2 == true){ //UNCONFIRMED UP 확인됐으면 RXCH 열리는 시간동안 출력
+          for(int i=0;i<12;i++){
+            downlink_msg[0] = '\0';
+            read_and_print_downlink_msg(downlink_msg, Serial2);
+           //parsing_downlink_msg(downlink_msg, NULL, rx2ch_open_cnt); // stack overflow!!
+            delay(1000);
+          }
+        }
+
+        if (checkReset == true)
         {
-            delay(3000);
+            delay(10000);
             pinMode(PINNUM_MCURST, OUTPUT); // MCU RESET
             delay(TRIGGER_DELAY);
         }
@@ -320,12 +330,11 @@ bool parsing_downlink_msg(char *str, char *check_rsp, int &rx2ch_open_cnt)
         ret = true;
     }
 
-    if (check_rsp != NULL)
-    {
-        if (strstr(str, check_rsp) != 0)
-        {
-            ret = true;
-        }
+    if(check_rsp != NULL){
+      if (strstr(str, check_rsp) != 0)
+      {
+        ret = true;
+      }
     }
     else
     {
@@ -333,13 +342,17 @@ bool parsing_downlink_msg(char *str, char *check_rsp, int &rx2ch_open_cnt)
         {
             ret = true;
         }
-        if (strstr(str, LORA_CLI_ERROR) != 0)
+        else if (strstr(str, LORA_CLI_ERROR) != 0)
         {
             //NYI
             ret = true;
         }
+        else{
+          //NYI
+          Serial.println("**************");
+        }
     }
-    //str[0] = '\0';
+    str[0] = '\0';
     return ret;
 }
 
