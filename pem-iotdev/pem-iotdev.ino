@@ -118,9 +118,9 @@ void check_pc_command(void)
             }
         }
 
-        else
+        else{
             send_packet_and_check_rsp(fromPC, LORA_CLI_OK);
-
+        }
         break;
 
     case 1: //Data Send 65 Bytes
@@ -129,8 +129,9 @@ void check_pc_command(void)
         if (clock() - CLK_TX > TX_TIME)
         {
             sprintf(packet_buf, LORA_CON_SEND, MSG_65_BYTES);
-            if (send_packet_and_check_rsp(packet_buf, LORA_ACK) == true)
+            if (send_packet_and_check_rsp(packet_buf, LORA_ACK) == true){
                 CLK_TX = clock();
+            }
             else
             {
                 //TODO: ack 못받은경우
@@ -259,8 +260,10 @@ bool send_packet_and_check_rsp(char *packet_buf, char *check_rsp)
     Serial2.println(packet_buf);
     delay(TX_TO_RX_DELAY);
 
-    while (ret == false && rx2ch_open_cnt != NUM_RETRANSMISSION)
+    int tempCnt = 0;
+    while (ret == false && tempCnt<120)
     {
+        tempCnt++;
         read_and_print_downlink_msg(downlink_msg, Serial2);
         ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
         delay(1000);
@@ -270,6 +273,8 @@ bool send_packet_and_check_rsp(char *packet_buf, char *check_rsp)
         ret = parsing_downlink_msg(downlink_msg, check_rsp, rx2ch_open_cnt);
         delay(1000);
     }
+
+    ret = true;
     return ret;
 }
 
@@ -278,12 +283,16 @@ bool parsing_downlink_msg(char *str, char *check_rsp, int &rx2ch_open_cnt)
     //TODO : busy
     bool ret = false;
 
-    if(str == NULL) return ret;
+    if(str == NULL){
+      return ret;
+    }
     
     char downlink_msg[RX_BUF_SIZE-10];
  
     if (strstr(str, RX2CH_OPEN) != 0)
     {
+        char* rx2ch = strstr(str, RX2CH_OPEN);
+        *rx2ch = 'm';
         rx2ch_open_cnt++;
     }
     
